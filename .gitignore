@@ -161,3 +161,8 @@ cython_debug/
 
 # Specific gitignores different from template
 .kaggle/
+data/ieeegrss_2023dfc_track2
+data/barcelona_copenhagen_portsmouth
+data/newdelhi_saoluis_brasilia_rio
+data/berlin
+data/newyork_sandiego_sydney

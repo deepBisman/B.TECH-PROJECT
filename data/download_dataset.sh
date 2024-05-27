@@ -1,13 +1,13 @@
 #!/bin/bash
 
 # Ensure the kaggle.json file is in the ~/.kaggle directory
-if [ ! -f .kaggle/kaggle.json ]; then
+if [ ! -f ../.kaggle/kaggle.json ]; then
     echo "Kaggle API credentials not found. Please place kaggle.json in ~/.kaggle"
     exit 1
 fi
 
 # Set the dataset directory
-DATASET_DIR="data/ieeegrss_2023dfc_track2"
+DATASET_DIR="ieeegrss_2023dfc_track2"
 
 # Create the dataset directory if it doesn't exist
 mkdir -p $DATASET_DIR
@@ -30,8 +30,7 @@ extract_city_name() {
 # Function to copy files to appropriate directories based on city groups
 copy_files() {
     local source_dir="$1"
-    local destination_dir="$2"
-    local file_type="$3"
+    local file_type="$2"
 
     # Iterate through files in source directory
     for file in "$source_dir/$file_type"/*; do
@@ -41,16 +40,16 @@ copy_files() {
         # Check city group and copy file accordingly
         case "$city_name" in
             "Berlin")
-                cp "$file" "$destination_dir/berlin/$file_type/"
+                cp "$file" "berlin/$file_type/"
                 ;;
             "Barcelona" | "Copenhagen" | "Portsmouth")
-                cp "$file" "$destination_dir/barcelona_copenhagen_portmuth/$file_type/"
+                cp "$file" "barcelona_copenhagen_portsmouth/$file_type/"
                 ;;
             "NewYork" | "SanDiego" | "Sydney")
-                cp "$file" "$destination_dir/newyork_sandiego_sydney/$file_type/"
+                cp "$file" "newyork_sandiego_sydney/$file_type/"
                 ;;
             "NewDelhi" | "SaoLuis" | "Brasilia" | "Rio")
-                cp "$file" "$destination_dir/newdelhi_saoluis_brasilia_rio/$file_type/"
+                cp "$file" "newdelhi_saoluis_brasilia_rio/$file_type/"
                 ;;
             *)
                 echo "City group not found for file: $file"
@@ -60,15 +59,15 @@ copy_files() {
 }
 
 # Create directories for city groups
-mkdir -p "data/berlin/sar" "data/berlin/rgb" "data/berlin/dsm"
-mkdir -p "data/barcelona_copenhagen_portmuth/sar" "data/barcelona_copenhagen_portmuth/rgb" "data/barcelona_copenhagen_portmuth/dsm"
-mkdir -p "data/newyork_sandiego_sydney/sar" "data/newyork_sandiego_sydney/rgb" "data/newyork_sandiego_sydney/dsm"
-mkdir -p "data/newdelhi_saoluis_brasilia_rio/sar" "data/newdelhi_saoluis_brasilia_rio/rgb" "data/newdelhi_saoluis_brasilia_rio/dsm"
+mkdir -p "berlin/sar" "berlin/rgb" "berlin/dsm"
+mkdir -p "barcelona_copenhagen_portsmouth/sar" "barcelona_copenhagen_portsmouth/rgb" "barcelona_copenhagen_portsmouth/dsm"
+mkdir -p "newyork_sandiego_sydney/sar" "newyork_sandiego_sydney/rgb" "newyork_sandiego_sydney/dsm"
+mkdir -p "newdelhi_saoluis_brasilia_rio/sar" "newdelhi_saoluis_brasilia_rio/rgb" "newdelhi_saoluis_brasilia_rio/dsm"
 
 # Copy files to appropriate directories for sar, rgb, and dsm
-copy_files "$DATASET_DIR" "data" "sar" &
-copy_files "$DATASET_DIR" "data" "rgb" &
-copy_files "$DATASET_DIR" "data" "dsm" &
+copy_files "$DATASET_DIR" "sar" &
+copy_files "$DATASET_DIR" "rgb" &
+copy_files "$DATASET_DIR" "dsm" &
 wait
 
 # Complete

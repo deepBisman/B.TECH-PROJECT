@@ -31,6 +31,6 @@ This will download the dataset into the `data/ieeegrss_2023dfc_track2` directory
 | IEEEGRSS_2023DFC_TRACK2            | 1773            |
 | NEWDELHI_SAOLUIS_BRASILIA_RIO      | 500             |
 | NEWYORK_SANDIEGO_SYDNEY            | 250             |
-| BARCELONA_COPENHAGEN_PORTMUTH      | 457             |
+| BARCELONA_COPENHAGEN_PORTSMOUTH      | 457             |
 | BERLIN                              | 566             |
 
