@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Ensure the kaggle.json file is in the ~/.kaggle directory
-if [ ! -f ../.kaggle/kaggle.json ]; then
+if [ ! -f .kaggle/kaggle.json ]; then
     echo "Kaggle API credentials not found. Please place kaggle.json in ~/.kaggle"
     exit 1
 fi
