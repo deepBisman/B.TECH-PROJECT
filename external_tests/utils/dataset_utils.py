@@ -1,6 +1,7 @@
 import rasterio
 import numpy as np
-import torch
+import os
+from tqdm import tqdm
 from rasterio.warp import transform
 from rasterio.enums import Resampling
 from rasterio import Affine, MemoryFile
@@ -144,3 +145,32 @@ def resample_raster_maxpool(input_raster, output_raster, scale=2):
         with memfile.open() as dataset:  # Reopen as DatasetReader
             yield dataset  # Note yield not return
 
+def resample_directory(input_dir, output_dir, scale, flag=False):
+    """
+    Resample all raster images in the input directory using the specified method
+    and save them to the output directory.
+
+    Args:
+        input_dir (str): Path to the directory containing input raster images.
+        output_dir (str): Path to the directory to save the resampled raster images.
+        scale (float): The scaling factor for resampling.
+        flag (bool): If True, use bilinear interpolation; if False, use max-pooling.
+    """
+    # Create output dir if it doesn't exist
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    
+    # Get list of files to process
+    files = [f for f in os.listdir(input_dir) if f.endswith(('.tif', '.tiff'))]
+    
+    # Resample the dataset with progress bar
+    for filename in tqdm(files, desc="Resampling rasters"):
+        input_path = os.path.join(input_dir, filename)
+        output_path = os.path.join(output_dir, filename)
+        with rasterio.open(input_path) as src:
+            if flag:
+                with resample_raster_bilinear(src, output_path, scale) as resampled:
+                    pass
+            else:
+                with resample_raster_maxpool(src, output_path, scale) as resampled:
+                    pass
