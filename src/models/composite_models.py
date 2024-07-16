@@ -18,7 +18,7 @@ class TwoStageUNetSequential(nn.Module):
     def forward(self, x):
         x1 = torch.round(F.sigmoid(self.segmentation_net(x)))
         x2 = self.regression_net(torch.cat([x, x1], dim=1))
-        return x2
+        return F.relu(x2)
 
 # Two Stage Regression : Model Type 2 - TSR-M2
 class TwoStageUNetFusion(nn.Module):
@@ -37,4 +37,4 @@ class TwoStageUNetFusion(nn.Module):
         x2 = self.regression_net(x)
         # Fuse the outputs by element wise multiplication
         x_out = x1 * x2
-        return x_out
+        return F.relu(x_out)

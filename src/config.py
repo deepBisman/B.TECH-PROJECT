@@ -28,7 +28,7 @@ config = {
     'composition' : 0,
     'composition_type': None,
     'base_net': UNet,
-    'segmentation_net_path': '../pretrained_models/unet1.pth',  # Path to the pretrained segmentation_net
+    'segmentation_net_path': None,  # Path to the pretrained segmentation_net
     'in_channels': 4,
     'out_channels': 1,
     'dropout' : 0,
