@@ -160,6 +160,7 @@ cython_debug/
 #.idea/
 
 # Specific gitignores different from template
+.vscode
 .kaggle/
 data/ieeegrss_2023dfc_track2
 data/barcelona_copenhagen_portsmouth
