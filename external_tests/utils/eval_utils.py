@@ -155,7 +155,7 @@ def compute_metrics(predicted_tensor, target_tensor, masks):
         combined_mask = combined_mask | mask
 
     # Calculate metrics in areas of interest (masked areas)
-    aoi = (masks[0] == 1)
+    aoi = (combined_mask == 1)
     delta1_1 = (maxRatio < 1.25)
     delta2_1 = (maxRatio < (1.25 ** 2))
     delta3_1 = (maxRatio < (1.25 ** 3))

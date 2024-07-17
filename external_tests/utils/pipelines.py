@@ -82,18 +82,43 @@ def preprocessing_pipeline_5M(rgb_path, target_path, rgb_mean, rgb_stddev, model
                 downsampled_rgb_path = dst
                 print('Orig dims: {}, New dims: {}'.format(src.shape, resampled.shape))
                 print(repr(resampled))
-    # Step 2) Inference using the model on downsampled_rgb_img
-    predicted_tensor = patchwise_inference(downsampled_rgb_path, rgb_mean, rgb_stddev, model, device, patch_size=512)
+    
+    # Step 2) Find Overlap bounds between predicted Image and target image
+    cropped_target_path = 'cropped_target.tif'
+    cropped_downsampled_rgb_path = 'cropped_downsampled_rgb.tif'
+
+    with rasterio.open(downsampled_rgb_path) as rgb, rasterio.open(target_path) as target: 
+        left = max(rgb.bounds.left, target.bounds.left)
+        right = min(rgb.bounds.right, target.bounds.right)
+        top = min(rgb.bounds.top, target.bounds.top)
+        bottom = max(rgb.bounds.bottom, target.bounds.bottom)
+    
+        # Check for overlap
+        if left < right and bottom < top:
+            overlapping_bounds = (left, bottom, right, top)
+            print("Overlapping area determined. Proceeding with cropping.")
+
+            # Crop both images to the overlapping area and save them
+            crop_raster_to_bounds(downsampled_rgb_path, overlapping_bounds, cropped_downsampled_rgb_path)
+            crop_raster_to_bounds(target_path, overlapping_bounds, cropped_target_path)
+
+            print(f"Cropping completed. Images saved to {cropped_downsampled_rgb_path} and {cropped_target_path}")
+        else:
+            print("No overlapping area found. No cropping performed.")
+            return
+    
+    # Step 3) Inference using the model on downsampled_rgb_img
+    predicted_tensor = patchwise_inference(cropped_downsampled_rgb_path, rgb_mean, rgb_stddev, model, device, patch_size=512)
     
     # Generate Null Mask
-    null_mask_tensor = generate_2d_null_mask(downsampled_rgb_path).to(device)
+    null_mask_tensor = generate_2d_null_mask(cropped_downsampled_rgb_path).to(device)
     
     # Mask the prediction
     predicted_tensor = predicted_tensor * null_mask_tensor
     predicted_tensor = predicted_tensor.squeeze().cpu().detach().numpy()
     
     # Open the original rgb image to access its transform and CRS
-    with rasterio.open(downsampled_rgb_path) as src:
+    with rasterio.open(cropped_downsampled_rgb_path) as src:
         transform = src.transform
         crs = src.crs
         # Prepare new metadata based on the original, but for the new data's shape and type
@@ -115,35 +140,9 @@ def preprocessing_pipeline_5M(rgb_path, target_path, rgb_mean, rgb_stddev, model
         elif predicted_tensor.ndim == 3:  # For multi-band (e.g., RGB) images
             for i in range(predicted_tensor.shape[2]):
                 dst.write(predicted_tensor[:, :, i], i + 1)
-
-    # Step 3) Find Overlap bounds between predicted Image and target image
-    cropped_predicted_path = 'cropped_predicted.tif'
-    cropped_target_path = 'cropped_target.tif'
-    cropped_downsampled_rgb_path = 'cropped_downsampled_rgb.tif'
-
-    with rasterio.open(predicted_path) as predicted, rasterio.open(target_path) as target: 
-        left = max(predicted.bounds.left, target.bounds.left)
-        right = min(predicted.bounds.right, target.bounds.right)
-        top = min(predicted.bounds.top, target.bounds.top)
-        bottom = max(predicted.bounds.bottom, target.bounds.bottom)
-    
-        # Check for overlap
-        if left < right and bottom < top:
-            overlapping_bounds = (left, bottom, right, top)
-            print("Overlapping area determined. Proceeding with cropping.")
-
-            # Crop both images to the overlapping area and save them
-            crop_raster_to_bounds(predicted_path, overlapping_bounds, cropped_predicted_path)
-            crop_raster_to_bounds(target_path, overlapping_bounds, cropped_target_path)
-            crop_raster_to_bounds(downsampled_rgb_path, overlapping_bounds, cropped_downsampled_rgb_path)
-
-            print(f"Cropping completed. Images saved to {cropped_downsampled_rgb_path}, {cropped_predicted_path} and {cropped_target_path}")
-        else:
-            print("No overlapping area found. No cropping performed.")
-            return
     
     # Step 4) Evaluate on target image
-    predicted_tensor, target_tensor, masks = load_and_align_images(cropped_predicted_path, cropped_target_path, cropped_downsampled_rgb_path)
+    predicted_tensor, target_tensor, masks = load_and_align_images(predicted_path, cropped_target_path, cropped_downsampled_rgb_path)
     delta1, delta2, delta3 = compute_metrics(predicted_tensor, target_tensor, masks)
 
     # Step 5) Tabulate results
@@ -156,7 +155,7 @@ def preprocessing_pipeline_5M(rgb_path, target_path, rgb_mean, rgb_stddev, model
     print(tabulate(table, headers=["Metric", "Value"], tablefmt='grid'))
 
     # Step 6) Delete all created images
-    cleanup_files = [downsampled_rgb_path, cropped_downsampled_rgb_path, cropped_target_path, predicted_path, cropped_predicted_path]
+    cleanup_files = [downsampled_rgb_path, cropped_downsampled_rgb_path, cropped_target_path, predicted_path]
     for file_path in cleanup_files:
         if os.path.exists(file_path):
             os.remove(file_path)
@@ -180,19 +179,42 @@ def preprocessing_pipeline_3M(rgb_path, target_path, rgb_mean, rgb_stddev, model
     Returns:
         None
     """
+    # Step 1) Find Overlap bounds between 3M RGB Image and 5M Target image
+    cropped_target_path = 'cropped_target.tif'
+    cropped_rgb_path = 'cropped_rgb.tif'
+
+    with rasterio.open(rgb_path) as rgb, rasterio.open(target_path) as target: 
+        left = max(rgb.bounds.left, target.bounds.left)
+        right = min(rgb.bounds.right, target.bounds.right)
+        top = min(rgb.bounds.top, target.bounds.top)
+        bottom = max(rgb.bounds.bottom, target.bounds.bottom)
     
-    # Step 1) Inference using the model on rgb_img
-    predicted_tensor = patchwise_inference(rgb_path, rgb_mean, rgb_stddev, model, device, patch_size=512)
+        # Check for overlap
+        if left < right and bottom < top:
+            overlapping_bounds = (left, bottom, right, top)
+            print("Overlapping area determined. Proceeding with cropping.")
+
+            # Crop both images to the overlapping area and save them
+            crop_raster_to_bounds(rgb_path, overlapping_bounds, cropped_rgb_path)
+            crop_raster_to_bounds(target_path, overlapping_bounds, cropped_target_path)
+            
+            print(f"Cropping completed. Images saved to {cropped_rgb_path} and {cropped_target_path}")
+        else:
+            print("No overlapping area found. No cropping performed.")
+            return
+    
+    # Step 2) Inference using the model on cropped_rgb_img
+    predicted_tensor = patchwise_inference(cropped_rgb_path, rgb_mean, rgb_stddev, model, device, patch_size=512)
     
     # Generate Null Mask
-    null_mask_tensor = generate_2d_null_mask(rgb_path).to(device)
+    null_mask_tensor = generate_2d_null_mask(cropped_rgb_path).to(device)
     
     # Mask the prediction
     predicted_tensor = predicted_tensor * null_mask_tensor
     predicted_tensor = predicted_tensor.squeeze().cpu().detach().numpy()
     
     # Open the original rgb image to access its transform and CRS
-    with rasterio.open(rgb_path) as src:
+    with rasterio.open(cropped_rgb_path) as src:
         transform = src.transform
         crs = src.crs
         # Prepare new metadata based on the original, but for the new data's shape and type
@@ -214,52 +236,26 @@ def preprocessing_pipeline_3M(rgb_path, target_path, rgb_mean, rgb_stddev, model
         elif predicted_tensor.ndim == 3:  # For multi-band (e.g., RGB) images
             for i in range(predicted_tensor.shape[2]):
                 dst.write(predicted_tensor[:, :, i], i + 1)
-
-    # Step 2) Find Overlap bounds between 3M Predicted Image and 5M Target image
-    cropped_predicted_path = 'cropped_predicted.tif'
-    cropped_target_path = 'cropped_target.tif'
-    cropped_rgb_path = 'cropped_rgb.tif'
-
-    with rasterio.open(predicted_path) as predicted, rasterio.open(target_path) as target: 
-        left = max(predicted.bounds.left, target.bounds.left)
-        right = min(predicted.bounds.right, target.bounds.right)
-        top = min(predicted.bounds.top, target.bounds.top)
-        bottom = max(predicted.bounds.bottom, target.bounds.bottom)
-    
-        # Check for overlap
-        if left < right and bottom < top:
-            overlapping_bounds = (left, bottom, right, top)
-            print("Overlapping area determined. Proceeding with cropping.")
-
-            # Crop both images to the overlapping area and save them
-            crop_raster_to_bounds(predicted_path, overlapping_bounds, cropped_predicted_path)
-            crop_raster_to_bounds(target_path, overlapping_bounds, cropped_target_path)
-            crop_raster_to_bounds(rgb_path, overlapping_bounds, cropped_rgb_path)
-            
-            print(f"Cropping completed. Images saved to {cropped_rgb_path}, {cropped_predicted_path} and {cropped_target_path}")
-        else:
-            print("No overlapping area found. No cropping performed.")
-            return
     
     # Step 3) Downsample 3M RGB Prediction to 5M RGB Prediction
-    downsampled_cropped_predicted_path = None
+    downsampled_predicted_path = None
     if resampling_method == 'bilinear':
         dst = 'downsampled_cropped_predicted_image.tif'
-        with rasterio.open(cropped_predicted_path) as src:
+        with rasterio.open(predicted_path) as src:
             with resample_raster_bilinear(input_raster=src, output_raster=dst, scale=0.6) as resampled:
-                downsampled_cropped_predicted_path = dst
+                downsampled_predicted_path = dst
                 print('Orig dims: {}, New dims: {}'.format(src.shape, resampled.shape))
                 print(repr(resampled))
     else:
         dst = 'downsampled_cropped_predicted_image.tif'
-        with rasterio.open(cropped_predicted_path) as src:
+        with rasterio.open(predicted_path) as src:
             with resample_raster_maxpool(input_raster=src, output_raster=dst, scale=0.6) as resampled:
-                downsampled_cropped_predicted_path = dst
+                downsampled_predicted_path = dst
                 print('Orig dims: {}, New dims: {}'.format(src.shape, resampled.shape))
                 print(repr(resampled))
     
     # Step 4) Evaluate on target image
-    predicted_tensor, target_tensor, masks = load_and_align_images(downsampled_cropped_predicted_path, cropped_target_path, cropped_rgb_path)
+    predicted_tensor, target_tensor, masks = load_and_align_images(downsampled_predicted_path, cropped_target_path, cropped_rgb_path)
     delta1, delta2, delta3 = compute_metrics(predicted_tensor, target_tensor, masks)
 
     # Step 5) Tabulate results
@@ -272,7 +268,7 @@ def preprocessing_pipeline_3M(rgb_path, target_path, rgb_mean, rgb_stddev, model
     print(tabulate(table, headers=["Metric", "Value"], tablefmt='grid'))
 
     # Step 6) Delete all created images
-    cleanup_files = [cropped_rgb_path, cropped_target_path, predicted_path, cropped_predicted_path, downsampled_cropped_predicted_path]
+    cleanup_files = [cropped_rgb_path, cropped_target_path, predicted_path, downsampled_predicted_path]
     for file_path in cleanup_files:
         if os.path.exists(file_path):
             os.remove(file_path)
